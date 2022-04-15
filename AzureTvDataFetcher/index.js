@@ -6,11 +6,16 @@ module.exports = async function (context, req) {
     //     ? "Hello, " + name + ". This HTTP triggered function executed successfully."
     //     : "This HTTP triggered function executed successfully. Pass a name in the query string or in the request body for a personalized response.";
 
+    const type = context.bindingData.type;
     const tmdbId = context.bindingData.id;
-    const responseMessage = `Getting show info for TMDB ID ${tmdbId}`;
+    const responseMessage = `Getting info for a ${type} with TMDB ID ${tmdbId}`;
 
     context.res = {
         // status: 200, /* Defaults to 200 */
         body: responseMessage
     };
 }
+
+const fetchShowInfo = (tmdbId) => {
+
+};

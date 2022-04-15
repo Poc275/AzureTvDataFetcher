@@ -8,7 +8,7 @@
       "methods": [
         "get"
       ],
-      "route": "show/{id:int}"
+      "route": "{type:regex(^(movie|tv)$)}/{id:int}"
     },
     {
       "type": "http",
