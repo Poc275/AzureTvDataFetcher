@@ -1,13 +1,6 @@
 const axios = require('axios').default;
 
-module.exports = async function (context, req) {
-    // context.log('JavaScript HTTP trigger function processed a request.');
-
-    // const name = (req.query.name || (req.body && req.body.name));
-    // const responseMessage = name
-    //     ? "Hello, " + name + ". This HTTP triggered function executed successfully."
-    //     : "This HTTP triggered function executed successfully. Pass a name in the query string or in the request body for a personalized response.";
-
+module.exports = async function (context) {
     const tmdbApiBaseUrl = "https://api.themoviedb.org/3";
     const type = context.bindingData.type;
     const tmdbId = context.bindingData.id;
@@ -19,12 +12,42 @@ module.exports = async function (context, req) {
         };
     } else {
         try {
-            const showInfo = await axios.get(`${tmdbApiBaseUrl}/${type}/${tmdbId}?api_key=${process.env["TmdbApiKey"]}`);
-            const appendToResponse = getTvAppendToResponse(showInfo.data);
-            const fullShowInfo = await axios.get(`${tmdbApiBaseUrl}/${type}/${tmdbId}?append_to_response=${appendToResponse}&api_key=${process.env["TmdbApiKey"]}`)
+            const showInfoRes = await axios.get(`${tmdbApiBaseUrl}/${type}/${tmdbId}?api_key=${process.env["TmdbApiKey"]}`);
+            const appendToResponse = getTvAppendToResponse(showInfoRes.data);
+            const fullShowInfoRes = await axios.get(`${tmdbApiBaseUrl}/${type}/${tmdbId}?append_to_response=${appendToResponse}&api_key=${process.env["TmdbApiKey"]}`);
+            const fullShowInfo = fullShowInfoRes.data;
 
-            const responseMessage = `Getting info for a ${type} with TMDB ID ${tmdbId}: ${JSON.stringify(fullShowInfo.data)}`;
-        
+            // write the show to table storage
+            context.bindings.azuretvTableBinding = [];
+            context.bindings.azuretvTableBinding.push({
+                PartitionKey: "shows",
+                RowKey: fullShowInfo.id,
+                name: fullShowInfo.name,
+                poster_path: fullShowInfo.poster_path,
+                backdrop_path: fullShowInfo.backdrop_path || fullShowInfo.poster_path,
+                tagline: fullShowInfo.tagline,
+                overview: fullShowInfo.overview,
+                number_of_episodes: fullShowInfo.number_of_episodes
+            });
+
+            // write the episodes to table storage
+            fullShowInfo.seasons.forEach(season => {
+                fullShowInfo[`season/${season.season_number}`].episodes.forEach(episode => {
+                    context.bindings.azuretvTableBinding.push({
+                        PartitionKey: "episodes",
+                        RowKey: `${fullShowInfo.id}_${episode.season_number}_${episode.episode_number}`,
+                        name: episode.name,
+                        overview: episode.overview,
+                        still_path: episode.still_path || fullShowInfo.poster_path,
+                        air_date: episode.air_date,
+                        episode_number: episode.episode_number,
+                        season_number: episode.season_number
+                    });
+                });
+            });
+
+            // return response
+            const responseMessage = `Inserted ${type} with TMDB ID ${tmdbId}: ${JSON.stringify(fullShowInfo)}`;
             context.res = {
                 // status: 200, /* Defaults to 200 */
                 body: responseMessage,
@@ -32,6 +55,7 @@ module.exports = async function (context, req) {
                     'Content-Type': 'application/json'
                 }
             };
+
         } catch(err) {
             context.log(`Error fetching ${type} info for id ${tmdbId}: ${err}`);
             context.res = {

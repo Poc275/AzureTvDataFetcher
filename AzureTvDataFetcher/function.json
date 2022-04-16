@@ -14,6 +14,13 @@
       "type": "http",
       "direction": "out",
       "name": "res"
+    },
+    {
+      "type": "table",
+      "tableName": "azuretv",
+      "name": "azuretvTableBinding",
+      "direction": "out",
+      "connection": "AzuretvTableStorageConnection"
     }
   ]
 }
